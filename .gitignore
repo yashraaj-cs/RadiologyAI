@@ -1,0 +1,40 @@
+# Python artifacts
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.pytest_cache/
+
+# Virtual environments
+venv/
+.venv/
+env/
+ENV/
+
+# Environment variables
+.env
+.env.local
+
+# Model weights & checkpoints
+*.pt
+*.pth
+*.bin
+*.onnx
+
+# Vector database storage
+.chroma/
+chroma_db/
+
+# Data directory
+data/
+!data/.gitkeep
+
+# Output and results directory
+results/
+!results/.gitkeep
+
+# IDE & OS files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
