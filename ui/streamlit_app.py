@@ -499,262 +499,503 @@ is_dark = st.session_state.get("theme_mode", "Light") == "Dark"
 
 
 def get_3d_bg_html(dark: bool = False) -> str:
-    """Generate pure 3D WebGL Three.js background canvas with fallback."""
-    bg_color = "rgba(7, 11, 20, 1)" if dark else "rgba(240, 244, 248, 1)"
-    fog_color = "0x070b14" if dark else "0xe2e8f0"
-    clear_color = "0x070b14" if dark else "0xf0f4f8"
+    """Generate high-performance standalone 3D interactive thoracic hologram canvas."""
+    bg_gradient = (
+        "radial-gradient(ellipse at 50% 50%, #0c1322 0%, #060911 100%)"
+        if dark
+        else "radial-gradient(ellipse at 50% 50%, #f8fafc 0%, #e2e8f0 100%)"
+    )
+    grid_color = "rgba(56, 189, 248, 0.07)" if dark else "rgba(2, 132, 199, 0.08)"
+    primary_color = "#38bdf8" if dark else "#0284c7"
+    secondary_color = "#818cf8" if dark else "#0369a1"
+    accent_color = "#34d399" if dark else "#0d9488"
+    glow_color = "rgba(56, 189, 248, 0.7)" if dark else "rgba(2, 132, 199, 0.45)"
+    laser_color = "rgba(56, 189, 248, 0.9)" if dark else "rgba(2, 132, 199, 0.85)"
+    hud_color = "rgba(148, 163, 184, 0.8)" if dark else "rgba(71, 85, 105, 0.85)"
 
     return f"""<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>3D Background Canvas</title>
+<title>RadiologyAI 3D Interactive Background</title>
 <style>
-  * {{ margin: 0; padding: 0; box-sizing: border-box; }}
-  body, html {{
+  * {{
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    user-select: none;
+    -webkit-user-select: none;
+  }}
+  html, body {{
     width: 100%;
     height: 100%;
     overflow: hidden;
-    background: {bg_color};
+    background: {bg_gradient};
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, monospace;
   }}
-  #canvas-container {{
-    position: absolute;
+  #bg-canvas {{
+    position: fixed;
     top: 0;
     left: 0;
-    width: 100%;
-    height: 100%;
-    z-index: 1;
+    width: 100vw;
+    height: 100vh;
+    display: block;
+    cursor: grab;
+  }}
+  #bg-canvas:active {{
+    cursor: grabbing;
+  }}
+  .hud-element {{
+    position: fixed;
+    font-size: 11px;
+    font-family: 'JetBrains Mono', Consolas, monospace;
+    font-weight: 600;
+    letter-spacing: 0.8px;
+    color: {hud_color};
+    pointer-events: none;
+    z-index: 5;
+    text-transform: uppercase;
+  }}
+  .hud-tl {{ top: 16px; left: 24px; }}
+  .hud-tr {{ top: 16px; right: 24px; text-align: right; }}
+  .hud-bl {{ bottom: 16px; left: 24px; }}
+  .hud-br {{ bottom: 16px; right: 24px; text-align: right; }}
+  .hud-bracket {{
+    display: inline-block;
+    color: {primary_color};
+    font-weight: 800;
+    margin-right: 4px;
   }}
 </style>
 </head>
 <body>
-<div id="canvas-container"></div>
+<canvas id="bg-canvas"></canvas>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<div class="hud-element hud-tl"><span class="hud-bracket">◈</span>RADIOLOGY-3D HOLOGRAM // SYSTEM ACTIVE</div>
+<div class="hud-element hud-tr">REAL-TIME PERSPECTIVE // TORCHXRAYVISION AI</div>
+<div class="hud-element hud-bl"><span class="hud-bracket">⚡</span>VOXEL RESOLUTION: 0.8mm • SCANNER 360° ACTIVE</div>
+<div class="hud-element hud-br">DRAG TO ROTATE 360° • HOVER TO TILT</div>
+
 <script>
-(function init3D() {{
-  const container = document.getElementById('canvas-container');
-  const width = window.innerWidth;
-  const height = window.innerHeight;
+(function() {{
+  const canvas = document.getElementById('bg-canvas');
+  const ctx = canvas.getContext('2d');
 
-  if (typeof THREE !== 'undefined') {{
-    const scene = new THREE.Scene();
-    scene.fog = new THREE.FogExp2({fog_color}, 0.0016);
+  let width = 0;
+  let height = 0;
+  let dpr = 1;
 
-    const camera = new THREE.PerspectiveCamera(55, width / height, 1, 1500);
-    camera.position.z = 390;
-
-    const renderer = new THREE.WebGLRenderer({{ antialias: true, alpha: true }});
-    renderer.setSize(width, height);
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    renderer.setClearColor({clear_color}, 1);
-    container.appendChild(renderer.domElement);
-
-    const group = new THREE.Group();
-    scene.add(group);
-
-    // 1. Thoracic Anatomical Particle Mesh (750 particles)
-    const particleCount = 750;
-    const geometry = new THREE.BufferGeometry();
-    const positions = new Float32Array(particleCount * 3);
-    const colors = new Float32Array(particleCount * 3);
-
-    const color1 = new THREE.Color(0x38bdf8); // Sky Cyan
-    const color2 = new THREE.Color(0x0284c7); // Deep Blue
-    const color3 = new THREE.Color(0x10b981); // Emerald Green
-    const color4 = new THREE.Color(0x818cf8); // Indigo
-
-    for (let i = 0; i < particleCount; i++) {{
-      const u = Math.random();
-      const v = Math.random();
-      const theta = u * 2.0 * Math.PI;
-      const phi = Math.acos(2.0 * v - 1.0);
-      const r = 120 + Math.random() * 55;
-
-      const x = r * Math.sin(phi) * Math.cos(theta) * 0.95;
-      const y = r * Math.sin(phi) * Math.sin(theta) * 1.35;
-      const z = r * Math.cos(phi) * 0.8;
-
-      positions[i * 3] = x;
-      positions[i * 3 + 1] = y;
-      positions[i * 3 + 2] = z;
-
-      const randC = Math.random();
-      const c = randC > 0.65 ? color1 : (randC > 0.35 ? color2 : (randC > 0.15 ? color3 : color4));
-      colors[i * 3] = c.r;
-      colors[i * 3 + 1] = c.g;
-      colors[i * 3 + 2] = c.b;
-    }}
-
-    geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-    geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
-
-    // Glow dot texture
-    const canvas = document.createElement('canvas');
-    canvas.width = 32;
-    canvas.height = 32;
-    const ctx = canvas.getContext('2d');
-    const grad = ctx.createRadialGradient(16, 16, 0, 16, 16, 16);
-    grad.addColorStop(0, 'rgba(255,255,255,1)');
-    grad.addColorStop(0.35, 'rgba(56,189,248,0.85)');
-    grad.addColorStop(1, 'rgba(0,0,0,0)');
-    ctx.fillStyle = grad;
-    ctx.fillRect(0, 0, 32, 32);
-
-    const texture = new THREE.CanvasTexture(canvas);
-
-    const pMaterial = new THREE.PointsMaterial({{
-      size: 6.5,
-      vertexColors: true,
-      map: texture,
-      transparent: true,
-      blending: THREE.AdditiveBlending,
-      depthWrite: false
-    }});
-
-    const particles = new THREE.Points(geometry, pMaterial);
-    group.add(particles);
-
-    // 2. Concentric Scanner Gimbal Rings
-    const ringGeo1 = new THREE.TorusGeometry(185, 1.2, 16, 100);
-    const ringMat1 = new THREE.MeshBasicMaterial({{
-      color: 0x0284c7,
-      wireframe: true,
-      transparent: true,
-      opacity: 0.38
-    }});
-    const ring1 = new THREE.Mesh(ringGeo1, ringMat1);
-    ring1.rotation.x = Math.PI / 2.2;
-    group.add(ring1);
-
-    const ringGeo2 = new THREE.TorusGeometry(210, 0.9, 16, 100);
-    const ringMat2 = new THREE.MeshBasicMaterial({{
-      color: 0x38bdf8,
-      wireframe: true,
-      transparent: true,
-      opacity: 0.28
-    }});
-    const ring2 = new THREE.Mesh(ringGeo2, ringMat2);
-    ring2.rotation.y = Math.PI / 3;
-    group.add(ring2);
-
-    // 3. Biometric Scan Line Plane
-    const scanGeo = new THREE.RingGeometry(25, 200, 64);
-    const scanMat = new THREE.MeshBasicMaterial({{
-      color: 0x38bdf8,
-      transparent: true,
-      opacity: 0.14,
-      side: THREE.DoubleSide
-    }});
-    const scanDisc = new THREE.Mesh(scanGeo, scanMat);
-    scanDisc.rotation.x = Math.PI / 2;
-    group.add(scanDisc);
-
-    // Interactivity: Cursor movement and 3D Dragging
-    let mouseX = 0, mouseY = 0;
-    let targetX = 0, targetY = 0;
-    let isDragging = false;
-    let previousMousePosition = {{ x: 0, y: 0 }};
-
-    window.addEventListener('mousemove', (e) => {{
-      mouseX = (e.clientX - width / 2) * 0.0007;
-      mouseY = (e.clientY - height / 2) * 0.0007;
-    }});
-
-    window.addEventListener('mousedown', (e) => {{
-      isDragging = true;
-      previousMousePosition = {{ x: e.clientX, y: e.clientY }};
-    }});
-
-    window.addEventListener('mouseup', () => {{ isDragging = false; }});
-
-    window.addEventListener('mousemove', (e) => {{
-      if (isDragging) {{
-        const deltaX = e.clientX - previousMousePosition.x;
-        const deltaY = e.clientY - previousMousePosition.y;
-        group.rotation.y += deltaX * 0.008;
-        group.rotation.x += deltaY * 0.008;
-        previousMousePosition = {{ x: e.clientX, y: e.clientY }};
-      }}
-    }});
-
-    window.addEventListener('resize', () => {{
-      const w = window.innerWidth;
-      const h = window.innerHeight;
-      camera.aspect = w / h;
-      camera.updateProjectionMatrix();
-      renderer.setSize(w, h);
-    }});
-
-    // Continuous Animation Loop
-    let clock = 0;
-    function animate() {{
-      requestAnimationFrame(animate);
-      clock += 0.015;
-
-      group.rotation.y += 0.0022;
-      ring1.rotation.z += 0.004;
-      ring2.rotation.x += 0.003;
-
-      scanDisc.position.y = Math.sin(clock * 1.4) * 125;
-      scanDisc.rotation.z += 0.01;
-
-      const breath = 1.0 + Math.sin(clock * 1.1) * 0.045;
-      particles.scale.set(breath, breath, breath);
-
-      targetX += (mouseX - targetX) * 0.05;
-      targetY += (mouseY - targetY) * 0.05;
-      if (!isDragging) {{
-        group.rotation.y += targetX * 0.35;
-        group.rotation.x += targetY * 0.35;
-      }}
-
-      renderer.render(scene, camera);
-    }}
-    animate();
-
-  }} else {{
-    // Standalone Canvas Fallback
-    const cvs = document.createElement('canvas');
-    cvs.width = width;
-    cvs.height = height;
-    container.appendChild(cvs);
-    const ctx = cvs.getContext('2d');
-
-    const dots = [];
-    for (let i = 0; i < 280; i++) {{
-      dots.push({{
-        x: (Math.random() - 0.5) * width,
-        y: (Math.random() - 0.5) * height,
-        z: Math.random() * 600 + 40,
-        radius: Math.random() * 2 + 1
-      }});
-    }}
-
-    function renderFallback() {{
-      ctx.fillStyle = '{bg_color}';
-      ctx.fillRect(0, 0, width, height);
-
-      dots.forEach(d => {{
-        d.z -= 0.8;
-        if (d.z <= 0) d.z = 640;
-        const k = 280 / d.z;
-        const px = d.x * k + width / 2;
-        const py = d.y * k + height / 2;
-        const size = Math.max(0.6, d.radius * k);
-
-        ctx.beginPath();
-        ctx.arc(px, py, size, 0, Math.PI * 2);
-        ctx.fillStyle = '#38bdf8';
-        ctx.shadowBlur = 8;
-        ctx.shadowColor = '#0284c7';
-        ctx.fill();
-      }});
-      requestAnimationFrame(renderFallback);
-    }}
-    renderFallback();
+  function resize() {{
+    dpr = Math.min(window.devicePixelRatio || 1, 2);
+    width = Math.max(window.innerWidth || 0, document.documentElement.clientWidth || 0, screen.availWidth || 1280);
+    height = Math.max(window.innerHeight || 0, document.documentElement.clientHeight || 0, screen.availHeight || 800);
+    canvas.width = width * dpr;
+    canvas.height = height * dpr;
+    canvas.style.width = '100vw';
+    canvas.style.height = '100vh';
   }}
+  window.addEventListener('resize', resize);
+  resize();
+
+  // 3D Rotation State
+  let rotY = 0.35;
+  let rotX = -0.15;
+  let targetRotY = 0.35;
+  let targetRotX = -0.15;
+  let isDragging = false;
+  let lastMouseX = 0;
+  let lastMouseY = 0;
+  let velRotY = 0.003;
+  let velRotX = 0;
+  let mouseTiltX = 0;
+  let mouseTiltY = 0;
+
+  // Mouse / Touch Event Listeners for 360 drag interaction
+  window.addEventListener('mousedown', (e) => {{
+    isDragging = true;
+    lastMouseX = e.clientX;
+    lastMouseY = e.clientY;
+  }});
+  window.addEventListener('mousemove', (e) => {{
+    mouseTiltX = ((e.clientX - width / 2) / width) * 0.25;
+    mouseTiltY = ((e.clientY - height / 2) / height) * 0.25;
+    if (isDragging) {{
+      const dx = e.clientX - lastMouseX;
+      const dy = e.clientY - lastMouseY;
+      targetRotY += dx * 0.008;
+      targetRotX += dy * 0.008;
+      velRotY = dx * 0.003;
+      velRotX = dy * 0.003;
+      lastMouseX = e.clientX;
+      lastMouseY = e.clientY;
+    }}
+  }});
+  window.addEventListener('mouseup', () => {{ isDragging = false; }});
+  window.addEventListener('mouseleave', () => {{ isDragging = false; }});
+
+  // Touch Support
+  window.addEventListener('touchstart', (e) => {{
+    if (e.touches.length === 1) {{
+      isDragging = true;
+      lastMouseX = e.touches[0].clientX;
+      lastMouseY = e.touches[0].clientY;
+    }}
+  }}, {{ passive: true }});
+  window.addEventListener('touchmove', (e) => {{
+    if (isDragging && e.touches.length === 1) {{
+      const dx = e.touches[0].clientX - lastMouseX;
+      const dy = e.touches[0].clientY - lastMouseY;
+      targetRotY += dx * 0.008;
+      targetRotX += dy * 0.008;
+      lastMouseX = e.touches[0].clientX;
+      lastMouseY = e.touches[0].clientY;
+    }}
+  }}, {{ passive: true }});
+  window.addEventListener('touchend', () => {{ isDragging = false; }});
+
+  // 3D Projection Math
+  const FOV = 650;
+  function project(x, y, z, cx, cy, curRotX, curRotY) {{
+    // Rotate around Y (yaw)
+    const cosY = Math.cos(curRotY);
+    const sinY = Math.sin(curRotY);
+    const x1 = x * cosY + z * sinY;
+    const z1 = -x * sinY + z * cosY;
+
+    // Rotate around X (pitch)
+    const cosX = Math.cos(curRotX);
+    const sinX = Math.sin(curRotX);
+    const y2 = y * cosX - z1 * sinX;
+    const z2 = y * sinX + z1 * cosX;
+
+    // Perspective scale
+    const dist = FOV + z2 + 350;
+    const scale = dist > 50 ? FOV / dist : 1;
+    return {{
+      x: cx + x1 * scale,
+      y: cy + y2 * scale,
+      scale: scale,
+      depth: z2
+    }};
+  }}
+
+  // Build Ribcage Anatomical 3D Geometry
+  const ribs = [];
+  const numRibPairs = 12;
+  for (let i = 0; i < numRibPairs; i++) {{
+    const norm = (i + 1) / (numRibPairs + 1);
+    const widthFactor = Math.sin(norm * Math.PI);
+    const ribWidth = 90 + widthFactor * 125;
+    const ribDepth = 55 + widthFactor * 85;
+    const ribY = -180 + i * 32;
+
+    const leftRibPoints = [];
+    const rightRibPoints = [];
+    const steps = 14;
+
+    for (let s = 0; s <= steps; s++) {{
+      const t = (s / steps) * Math.PI;
+      const sinT = Math.sin(t);
+      const cosT = Math.cos(t);
+
+      const px = ribWidth * sinT;
+      const pz = ribDepth * (1 - cosT) * 0.5 - 25;
+      const py = ribY + (s / steps) * 26 * sinT;
+
+      leftRibPoints.push({{ x: -px, y: py, z: pz }});
+      rightRibPoints.push({{ x: px, y: py, z: pz }});
+    }}
+    ribs.push({{ left: leftRibPoints, right: rightRibPoints, y: ribY }});
+  }}
+
+  // Build Vertebrae Spine Column
+  const vertebrae = [];
+  const numVertebrae = 18;
+  for (let v = 0; v < numVertebrae; v++) {{
+    const vy = -210 + v * 25;
+    vertebrae.push({{
+      center: {{ x: 0, y: vy, z: -25 }},
+      leftWing: {{ x: -22, y: vy, z: -25 }},
+      rightWing: {{ x: 22, y: vy, z: -25 }}
+    }});
+  }}
+
+  // Build 3D Scanner Gimbal Rings
+  const ring1Pts = [];
+  const ring2Pts = [];
+  const ringSteps = 72;
+  const r1 = 280;
+  const r2 = 330;
+  for (let j = 0; j < ringSteps; j++) {{
+    const a = (j / ringSteps) * Math.PI * 2;
+    ring1Pts.push({{
+      x: r1 * Math.cos(a),
+      y: r1 * Math.sin(a) * Math.cos(0.75),
+      z: r1 * Math.sin(a) * Math.sin(0.75)
+    }});
+    ring2Pts.push({{
+      x: r2 * Math.cos(a),
+      y: r2 * Math.sin(a) * Math.cos(-0.65),
+      z: r2 * Math.sin(a) * Math.sin(-0.65)
+    }});
+  }}
+
+  // Build Floating Neural Cloud Particles
+  const particles = [];
+  const particleCount = 140;
+  for (let p = 0; p < particleCount; p++) {{
+    const u = Math.random();
+    const v = Math.random();
+    const theta = u * 2.0 * Math.PI;
+    const phi = Math.acos(2.0 * v - 1.0);
+    const rad = 130 + Math.random() * 260;
+    particles.push({{
+      x: rad * Math.sin(phi) * Math.cos(theta),
+      y: rad * Math.sin(phi) * Math.sin(theta) * 1.3,
+      z: rad * Math.cos(phi),
+      vx: (Math.random() - 0.5) * 0.3,
+      vy: (Math.random() - 0.5) * 0.3,
+      vz: (Math.random() - 0.5) * 0.3,
+      size: Math.random() * 2.5 + 1.2,
+      phase: Math.random() * Math.PI * 2
+    }});
+  }}
+
+  // Animation Loop
+  let time = 0;
+  let ringAngle1 = 0;
+  let ringAngle2 = 0;
+
+  function draw() {{
+    requestAnimationFrame(draw);
+    time += 0.016;
+
+    // Smooth inertia and rotation
+    if (!isDragging) {{
+      targetRotY += velRotY;
+      targetRotX += velRotX;
+      velRotY *= 0.96;
+      velRotX *= 0.96;
+      if (Math.abs(velRotY) < 0.001) velRotY = 0.0022; // subtle continuous idle rotation
+    }}
+    rotY += (targetRotY + mouseTiltX - rotY) * 0.06;
+    rotX += (targetRotX + mouseTiltY - rotX) * 0.06;
+
+    ringAngle1 += 0.008;
+    ringAngle2 -= 0.006;
+
+    // Respiratory breathing expansion
+    const breath = 1.0 + Math.sin(time * 1.3) * 0.04;
+    const scanLaserY = Math.sin(time * 1.25) * 190;
+
+    // Clear Canvas and Reset Transform
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.scale(dpr, dpr);
+
+    const cx = width / 2;
+    const cy = height / 2;
+
+    // Draw Subtle Technical Spatial Grid
+    ctx.save();
+    ctx.strokeStyle = '{grid_color}';
+    ctx.lineWidth = 1;
+    const gridSize = 60;
+    for (let gx = (cx % gridSize); gx < width; gx += gridSize) {{
+      ctx.beginPath();
+      ctx.moveTo(gx, 0);
+      ctx.lineTo(gx, height);
+      ctx.stroke();
+    }}
+    for (let gy = (cy % gridSize); gy < height; gy += gridSize) {{
+      ctx.beginPath();
+      ctx.moveTo(0, gy);
+      ctx.lineTo(width, gy);
+      ctx.stroke();
+    }}
+    ctx.restore();
+
+    // 1. Draw Scanner Gimbal Rings
+    ctx.save();
+    ctx.lineWidth = 1.6;
+    ctx.strokeStyle = '{secondary_color}';
+    ctx.shadowBlur = 10;
+    ctx.shadowColor = '{glow_color}';
+    ctx.globalAlpha = 0.55;
+
+    // Ring 1
+    ctx.beginPath();
+    for (let j = 0; j <= ringSteps; j++) {{
+      const pt = ring1Pts[j % ringSteps];
+      const cosA = Math.cos(ringAngle1);
+      const sinA = Math.sin(ringAngle1);
+      const rx = pt.x * cosA + pt.z * sinA;
+      const rz = -pt.x * sinA + pt.z * cosA;
+      const proj = project(rx, pt.y, rz, cx, cy, rotX, rotY);
+      if (j === 0) ctx.moveTo(proj.x, proj.y);
+      else ctx.lineTo(proj.x, proj.y);
+    }}
+    ctx.stroke();
+
+    // Ring 2
+    ctx.strokeStyle = '{primary_color}';
+    ctx.globalAlpha = 0.45;
+    ctx.beginPath();
+    for (let j = 0; j <= ringSteps; j++) {{
+      const pt = ring2Pts[j % ringSteps];
+      const cosA = Math.cos(ringAngle2);
+      const sinA = Math.sin(ringAngle2);
+      const rx = pt.x * cosA + pt.z * sinA;
+      const rz = -pt.x * sinA + pt.z * cosA;
+      const proj = project(rx, pt.y, rz, cx, cy, rotX, rotY);
+      if (j === 0) ctx.moveTo(proj.x, proj.y);
+      else ctx.lineTo(proj.x, proj.y);
+    }}
+    ctx.stroke();
+    ctx.restore();
+
+    // 2. Draw 3D Thoracic Ribcage
+    ctx.save();
+    ctx.lineWidth = 2.4;
+    ctx.strokeStyle = '{primary_color}';
+    ctx.shadowBlur = 12;
+    ctx.shadowColor = '{glow_color}';
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+
+    ribs.forEach((rib, idx) => {{
+      const isScanned = Math.abs(rib.y - scanLaserY) < 24;
+      ctx.globalAlpha = isScanned ? 0.95 : 0.65;
+      ctx.lineWidth = isScanned ? 3.2 : 2.2;
+      ctx.strokeStyle = isScanned ? '{accent_color}' : '{primary_color}';
+
+      // Left Rib Arc
+      ctx.beginPath();
+      rib.left.forEach((pt, pIdx) => {{
+        const proj = project(pt.x * breath, pt.y, pt.z * breath, cx, cy, rotX, rotY);
+        if (pIdx === 0) ctx.moveTo(proj.x, proj.y);
+        else ctx.lineTo(proj.x, proj.y);
+      }});
+      ctx.stroke();
+
+      // Right Rib Arc
+      ctx.beginPath();
+      rib.right.forEach((pt, pIdx) => {{
+        const proj = project(pt.x * breath, pt.y, pt.z * breath, cx, cy, rotX, rotY);
+        if (pIdx === 0) ctx.moveTo(proj.x, proj.y);
+        else ctx.lineTo(proj.x, proj.y);
+      }});
+      ctx.stroke();
+    }});
+    ctx.restore();
+
+    // 3. Draw Vertebrae Spine Column
+    ctx.save();
+    ctx.strokeStyle = '{secondary_color}';
+    ctx.fillStyle = '{primary_color}';
+    ctx.shadowBlur = 8;
+    ctx.shadowColor = '{glow_color}';
+    ctx.lineWidth = 2.0;
+
+    let prevProj = null;
+    vertebrae.forEach((vert) => {{
+      const pCenter = project(vert.center.x, vert.center.y, vert.center.z, cx, cy, rotX, rotY);
+      const pLeft = project(vert.leftWing.x, vert.leftWing.y, vert.leftWing.z, cx, cy, rotX, rotY);
+      const pRight = project(vert.rightWing.x, vert.rightWing.y, vert.rightWing.z, cx, cy, rotX, rotY);
+
+      if (prevProj) {{
+        ctx.beginPath();
+        ctx.moveTo(prevProj.x, prevProj.y);
+        ctx.lineTo(pCenter.x, pCenter.y);
+        ctx.stroke();
+      }}
+      prevProj = pCenter;
+
+      ctx.beginPath();
+      ctx.moveTo(pLeft.x, pLeft.y);
+      ctx.lineTo(pRight.x, pRight.y);
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.arc(pCenter.x, pCenter.y, Math.max(2, 4.5 * pCenter.scale), 0, Math.PI * 2);
+      ctx.fill();
+    }});
+    ctx.restore();
+
+    // 4. Biometric CT Laser Scan Sweep Plane
+    ctx.save();
+    const pLaserLeft = project(-260, scanLaserY, 0, cx, cy, rotX, rotY);
+    const pLaserRight = project(260, scanLaserY, 0, cx, cy, rotX, rotY);
+    const pLaserCenter = project(0, scanLaserY, 0, cx, cy, rotX, rotY);
+
+    const laserGrad = ctx.createLinearGradient(pLaserLeft.x, pLaserLeft.y, pLaserRight.x, pLaserRight.y);
+    laserGrad.addColorStop(0, 'rgba(56, 189, 248, 0)');
+    laserGrad.addColorStop(0.3, '{laser_color}');
+    laserGrad.addColorStop(0.7, '{laser_color}');
+    laserGrad.addColorStop(1, 'rgba(56, 189, 248, 0)');
+
+    ctx.strokeStyle = laserGrad;
+    ctx.lineWidth = 3.0;
+    ctx.shadowBlur = 18;
+    ctx.shadowColor = '{primary_color}';
+    ctx.beginPath();
+    ctx.moveTo(pLaserLeft.x, pLaserLeft.y);
+    ctx.lineTo(pLaserRight.x, pLaserRight.y);
+    ctx.stroke();
+
+    ctx.fillStyle = '{accent_color}';
+    ctx.beginPath();
+    ctx.arc(pLaserCenter.x, pLaserCenter.y, 4.5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+
+    // 5. Floating Neural Nodes and Dynamic Synapses
+    ctx.save();
+    const projParticles = particles.map(p => {{
+      p.x += p.vx;
+      p.y += p.vy;
+      p.z += p.vz;
+      if (Math.abs(p.x) > 340) p.vx *= -1;
+      if (Math.abs(p.y) > 340) p.vy *= -1;
+      if (Math.abs(p.z) > 340) p.vz *= -1;
+      const proj = project(p.x, p.y, p.z, cx, cy, rotX, rotY);
+      return {{ proj, p }};
+    }});
+
+    ctx.lineWidth = 0.9;
+    ctx.strokeStyle = '{primary_color}';
+    for (let i = 0; i < projParticles.length; i++) {{
+      for (let j = i + 1; j < projParticles.length; j++) {{
+        const pi = projParticles[i];
+        const pj = projParticles[j];
+        const dsq = Math.pow(pi.proj.x - pj.proj.x, 2) + Math.pow(pi.proj.y - pj.proj.y, 2);
+        if (dsq < 6400) {{
+          const alpha = (1 - Math.sqrt(dsq) / 80) * 0.35;
+          ctx.globalAlpha = alpha;
+          ctx.beginPath();
+          ctx.moveTo(pi.proj.x, pi.proj.y);
+          ctx.lineTo(pj.proj.x, pj.proj.y);
+          ctx.stroke();
+        }}
+      }}
+    }}
+
+    ctx.shadowBlur = 6;
+    ctx.shadowColor = '{glow_color}';
+    projParticles.forEach(({{ proj, p }}) => {{
+      const alpha = Math.min(0.85, Math.max(0.2, (proj.depth + 300) / 600));
+      ctx.globalAlpha = alpha;
+      ctx.fillStyle = '{primary_color}';
+      ctx.beginPath();
+      ctx.arc(proj.x, proj.y, Math.max(1, p.size * proj.scale), 0, Math.PI * 2);
+      ctx.fill();
+    }});
+    ctx.restore();
+
+  }}
+
+  draw();
 }})();
 </script>
 </body>
@@ -764,8 +1005,8 @@ def get_3d_bg_html(dark: bool = False) -> str:
 
 def render_landing_hero(dark: bool = False) -> None:
     """Render the landing screen with 3D background and native interactive launch card."""
-    # 1. 3D WebGL background canvas
-    components.html(get_3d_bg_html(dark), height=0, scrolling=False)
+    # 1. 3D WebGL / Canvas background canvas (explicit height to guarantee viewport sizing)
+    components.html(get_3d_bg_html(dark), height=850, scrolling=False)
 
     card_bg = "rgba(11, 15, 25, 0.92)" if dark else "rgba(255, 255, 255, 0.95)"
     card_border = "rgba(56, 189, 248, 0.45)" if dark else "rgba(2, 132, 199, 0.35)"
@@ -780,19 +1021,38 @@ def render_landing_hero(dark: bool = False) -> None:
     st.markdown(
         f"""
         <style>
+        /* 0. Ensure all Streamlit wrapper backgrounds are completely transparent */
+        html, body, .stApp,
+        [data-testid="stAppViewContainer"],
+        [data-testid="stMain"],
+        section.main,
+        header[data-testid="stHeader"],
+        [data-testid="stToolbar"] {{
+            background: transparent !important;
+            background-color: transparent !important;
+        }}
+
         /* 1. Fullscreen 3D Background Canvas fixed at z-index 0 */
-        div[data-testid="stCustomComponentV1"] {{
+        iframe[title="st.iframe"],
+        div[data-testid="stCustomComponentV1"],
+        div[data-testid="stIFrame"],
+        div.element-container:has(iframe) {{
             position: fixed !important;
             top: 0 !important;
             left: 0 !important;
             width: 100vw !important;
             height: 100vh !important;
+            min-width: 100vw !important;
+            min-height: 100vh !important;
             z-index: 0 !important;
             margin: 0 !important;
             padding: 0 !important;
+            border: none !important;
             pointer-events: auto !important;
+            display: block !important;
         }}
-        div[data-testid="stCustomComponentV1"] iframe {{
+
+        iframe {{
             position: fixed !important;
             top: 0 !important;
             left: 0 !important;
