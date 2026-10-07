@@ -1200,7 +1200,7 @@ def render_landing_hero(dark: bool = False) -> None:
             btn_col1, btn_col2, btn_col3 = st.columns([1, 2.8, 1])
             with btn_col2:
                 if st.button(
-                    "🚀 Enter Clinical Workstation",
+                    "Enter Clinical Workstation",
                     type="primary",
                     use_container_width=True,
                     key="launch_app_main",
